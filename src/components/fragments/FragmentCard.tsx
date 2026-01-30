@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, Badge } from '@/components/ui';
+import { Card, Badge, SafeText } from '@/components/ui';
 import { formatRelativeTime } from '@/lib/utils';
 import { valenceToEmoji, type ThoughtFragment } from '@/types';
 
@@ -37,9 +37,9 @@ export function FragmentCard({ fragment, showLink = true, similarity }: Fragment
         </div>
 
         {/* 본문 */}
-        <p className="text-neutral-900 dark:text-neutral-100 line-clamp-3">
+        <SafeText className="text-neutral-900 dark:text-neutral-100 line-clamp-3">
           {fragment.text}
-        </p>
+        </SafeText>
 
         {/* 주제 태그 */}
         {fragment.topicHint && (

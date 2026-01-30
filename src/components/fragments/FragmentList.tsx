@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FragmentCard } from './FragmentCard';
 import { Button, EmptyState, SkeletonList } from '@/components/ui';
 import { fragmentsApi } from '@/lib/api';
@@ -9,17 +9,19 @@ import type { ThoughtFragment } from '@/types';
 interface FragmentListProps {
   initialFragments?: ThoughtFragment[];
   limit?: number;
+  onRefreshReady?: (refresh: () => void) => void;
 }
 
-export function FragmentList({ initialFragments, limit = 20 }: FragmentListProps) {
+export function FragmentList({ initialFragments, limit = 20, onRefreshReady }: FragmentListProps) {
   const [fragments, setFragments] = useState<ThoughtFragment[]>(initialFragments || []);
   const [isLoading, setIsLoading] = useState(!initialFragments);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadFragments = async (offset = 0) => {
+  const loadFragments = useCallback(async (offset = 0) => {
     try {
       setIsLoading(true);
+      setError(null);
       const response = await fragmentsApi.list(limit, offset);
 
       if (offset === 0) {
@@ -34,13 +36,21 @@ export function FragmentList({ initialFragments, limit = 20 }: FragmentListProps
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [limit]);
+
+  const refresh = useCallback(() => {
+    loadFragments(0);
+  }, [loadFragments]);
 
   useEffect(() => {
     if (!initialFragments) {
       loadFragments();
     }
-  }, [initialFragments]);
+  }, [initialFragments, loadFragments]);
+
+  useEffect(() => {
+    onRefreshReady?.(refresh);
+  }, [onRefreshReady, refresh]);
 
   const handleLoadMore = () => {
     loadFragments(fragments.length);
@@ -53,11 +63,11 @@ export function FragmentList({ initialFragments, limit = 20 }: FragmentListProps
   if (error) {
     return (
       <EmptyState
-        icon={<span className="text-4xl">⚠️</span>}
+        icon={<span className="text-4xl" aria-hidden="true">⚠️</span>}
         title="오류가 발생했습니다"
         description={error}
         action={
-          <Button onClick={() => loadFragments()} variant="outline">
+          <Button onClick={refresh} variant="outline">
             다시 시도
           </Button>
         }
@@ -68,7 +78,7 @@ export function FragmentList({ initialFragments, limit = 20 }: FragmentListProps
   if (fragments.length === 0) {
     return (
       <EmptyState
-        icon={<span className="text-5xl">🌱</span>}
+        icon={<span className="text-5xl" aria-hidden="true">🌱</span>}
         title="아직 기록이 없어요"
         description="첫 생각을 기록하면 당신만의 가치 그래프가 형성되기 시작해요"
       />
@@ -76,9 +86,11 @@ export function FragmentList({ initialFragments, limit = 20 }: FragmentListProps
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="list" aria-label="기록 목록">
       {fragments.map((fragment) => (
-        <FragmentCard key={fragment.id} fragment={fragment} />
+        <div key={fragment.id} role="listitem">
+          <FragmentCard fragment={fragment} />
+        </div>
       ))}
 
       {hasMore && (

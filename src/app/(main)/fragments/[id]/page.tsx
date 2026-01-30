@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, Badge, Button, Modal, EmptyState, Skeleton } from '@/components/ui';
+import { Card, CardContent, Badge, Button, Modal, EmptyState, Skeleton, SafeText } from '@/components/ui';
 import { FragmentCard } from '@/components/fragments';
 import { fragmentsApi } from '@/lib/api';
 import { formatDateTime, formatValence } from '@/lib/utils';
@@ -109,9 +109,9 @@ export default function FragmentDetailPage() {
 
           {/* 본문 */}
           <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg p-4">
-            <p className="text-lg text-neutral-900 dark:text-neutral-100 whitespace-pre-wrap">
+            <SafeText className="text-lg text-neutral-900 dark:text-neutral-100">
               {fragment.text}
-            </p>
+            </SafeText>
           </div>
 
           {/* 감정 분석 */}
@@ -183,9 +183,9 @@ export default function FragmentDetailPage() {
             이 기록을 숨길까요?
           </p>
           <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3">
-            <p className="text-sm text-neutral-700 dark:text-neutral-300 line-clamp-2">
-              "{fragment.text}"
-            </p>
+            <SafeText className="text-sm text-neutral-700 dark:text-neutral-300 line-clamp-2">
+              {`"${fragment.text}"`}
+            </SafeText>
           </div>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
             ⚠️ 숨긴 기록은 목록에서 보이지 않지만, 가치 분석에는 영향을 주지 않습니다.

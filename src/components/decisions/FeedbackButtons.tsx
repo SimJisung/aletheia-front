@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui';
 import { decisionsApi } from '@/lib/api';
+import { useFormSubmit } from '@/hooks';
 import { FEEDBACK_OPTIONS, type FeedbackType } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -12,21 +12,24 @@ interface FeedbackButtonsProps {
 }
 
 export function FeedbackButtons({ decisionId, onSuccess }: FeedbackButtonsProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
 
-  const handleSubmit = async (type: FeedbackType) => {
-    setIsSubmitting(true);
-    setSelectedType(type);
-
-    try {
+  const { execute, isLoading, error } = useFormSubmit(
+    async (type: FeedbackType) => {
       await decisionsApi.submitFeedback(decisionId, { feedbackType: type });
-      onSuccess?.();
-    } catch (err) {
-      console.error('Failed to submit feedback:', err);
+      return type;
+    },
+    {
+      errorMessage: '피드백 제출에 실패했습니다. 다시 시도해주세요.',
+      onSuccess,
+    }
+  );
+
+  const handleSubmit = async (type: FeedbackType) => {
+    setSelectedType(type);
+    const result = await execute(type);
+    if (!result) {
       setSelectedType(null);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -41,12 +44,20 @@ export function FeedbackButtons({ decisionId, onSuccess }: FeedbackButtonsProps)
         </p>
       </div>
 
-      <div className="flex justify-center gap-3">
+      {error && (
+        <p className="text-sm text-red-500 text-center" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="flex justify-center gap-3" role="group" aria-label="피드백 선택">
         {FEEDBACK_OPTIONS.map((option) => (
           <button
             key={option.type}
             onClick={() => handleSubmit(option.type)}
-            disabled={isSubmitting}
+            disabled={isLoading}
+            aria-pressed={selectedType === option.type}
+            aria-label={`${option.label} 피드백 제출`}
             className={cn(
               'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200',
               'hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20',
@@ -57,7 +68,7 @@ export function FeedbackButtons({ decisionId, onSuccess }: FeedbackButtonsProps)
                 : 'border-neutral-200 dark:border-neutral-700'
             )}
           >
-            <span className="text-3xl">{option.emoji}</span>
+            <span className="text-3xl" aria-hidden="true">{option.emoji}</span>
             <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
               {option.label}
             </span>
