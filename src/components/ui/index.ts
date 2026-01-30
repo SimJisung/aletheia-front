@@ -5,3 +5,4 @@ export { Badge, type BadgeProps } from './Badge';
 export { Modal } from './Modal';
 export { EmptyState } from './EmptyState';
 export { Skeleton, SkeletonCard, SkeletonList } from './Skeleton';
+export { SafeText } from './SafeText';

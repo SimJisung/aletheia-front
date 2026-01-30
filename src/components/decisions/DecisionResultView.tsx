@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, Badge, Button } from '@/components/ui';
+import { Card, CardContent, Badge, Button, SafeText } from '@/components/ui';
 import { FeedbackButtons } from './FeedbackButtons';
 import { decisionsApi } from '@/lib/api';
 import { formatPercent } from '@/lib/utils';
@@ -166,9 +166,9 @@ export function DecisionResultView({ decision, onFeedbackSubmitted }: DecisionRe
             )}
           </div>
           {explanation ? (
-            <p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">
+            <SafeText className="text-neutral-700 dark:text-neutral-300">
               {explanation}
-            </p>
+            </SafeText>
           ) : (
             <p className="text-neutral-500 dark:text-neutral-400 text-sm">
               AI가 생성한 상세 설명을 확인하려면 "설명 보기"를 클릭하세요.
