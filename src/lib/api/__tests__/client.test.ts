@@ -1,62 +1,75 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { apiClient, ApiError, generateUserId } from '../client';
+import { apiClient, ApiError } from '../client';
 
 describe('ApiClient', () => {
   const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     mockFetch.mockReset();
-    apiClient.clearUserId();
+    apiClient.clearToken();
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('setUserId / getUserId', () => {
-    it('should set and get user ID', () => {
-      apiClient.setUserId('test-user-123');
-      expect(apiClient.getUserId()).toBe('test-user-123');
+  describe('setToken / getToken', () => {
+    it('should set and get token', () => {
+      apiClient.setToken('test-token-123');
+      expect(apiClient.getToken()).toBe('test-token-123');
     });
 
-    it('should store user ID in localStorage', () => {
-      apiClient.setUserId('test-user-456');
-      expect(localStorage.setItem).toHaveBeenCalledWith('pros-user-id', 'test-user-456');
+    it('should store token in localStorage', () => {
+      apiClient.setToken('test-token-456');
+      expect(localStorage.setItem).toHaveBeenCalledWith('pros-auth-token', 'test-token-456');
     });
 
-    it('should return null when no user ID is set', () => {
+    it('should return null when no token is set', () => {
       (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
-      expect(apiClient.getUserId()).toBeNull();
+      expect(apiClient.getToken()).toBeNull();
     });
   });
 
-  describe('clearUserId', () => {
-    it('should clear user ID', () => {
-      apiClient.setUserId('test-user');
-      apiClient.clearUserId();
+  describe('clearToken', () => {
+    it('should clear token', () => {
+      apiClient.setToken('test-token');
+      apiClient.clearToken();
       (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
-      expect(apiClient.getUserId()).toBeNull();
+      expect(apiClient.getToken()).toBeNull();
     });
 
-    it('should remove user ID from localStorage', () => {
-      apiClient.clearUserId();
-      expect(localStorage.removeItem).toHaveBeenCalledWith('pros-user-id');
+    it('should remove token from localStorage', () => {
+      apiClient.clearToken();
+      expect(localStorage.removeItem).toHaveBeenCalledWith('pros-auth-token');
+    });
+  });
+
+  describe('isAuthenticated', () => {
+    it('should return true when token is set', () => {
+      apiClient.setToken('test-token');
+      expect(apiClient.isAuthenticated()).toBe(true);
+    });
+
+    it('should return false when no token is set', () => {
+      apiClient.clearToken();
+      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
+      expect(apiClient.isAuthenticated()).toBe(false);
     });
   });
 
   describe('request', () => {
-    it('should throw ApiError when user ID is not set', async () => {
+    it('should throw ApiError when not authenticated', async () => {
       (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
 
       await expect(apiClient.get('/test')).rejects.toThrow(ApiError);
       await expect(apiClient.get('/test')).rejects.toMatchObject({
         status: 401,
-        statusText: 'User ID not set',
+        statusText: 'Not authenticated',
       });
     });
 
     it('should make GET request with proper headers', async () => {
-      apiClient.setUserId('test-user');
+      apiClient.setToken('test-token');
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -71,7 +84,7 @@ describe('ApiClient', () => {
           method: 'GET',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'X-User-Id': 'test-user',
+            Authorization: 'Bearer test-token',
           }),
         })
       );
@@ -79,7 +92,7 @@ describe('ApiClient', () => {
     });
 
     it('should make GET request with query params', async () => {
-      apiClient.setUserId('test-user');
+      apiClient.setToken('test-token');
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -99,7 +112,7 @@ describe('ApiClient', () => {
     });
 
     it('should make POST request with body', async () => {
-      apiClient.setUserId('test-user');
+      apiClient.setToken('test-token');
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
@@ -119,7 +132,7 @@ describe('ApiClient', () => {
     });
 
     it('should make DELETE request', async () => {
-      apiClient.setUserId('test-user');
+      apiClient.setToken('test-token');
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 204,
@@ -136,7 +149,7 @@ describe('ApiClient', () => {
     });
 
     it('should handle 204 No Content response', async () => {
-      apiClient.setUserId('test-user');
+      apiClient.setToken('test-token');
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 204,
@@ -148,7 +161,7 @@ describe('ApiClient', () => {
     });
 
     it('should throw ApiError on non-ok response', async () => {
-      apiClient.setUserId('test-user');
+      apiClient.setToken('test-token');
       mockFetch.mockResolvedValue({
         ok: false,
         status: 404,
@@ -167,7 +180,7 @@ describe('ApiClient', () => {
     });
 
     it('should handle error response without JSON body', async () => {
-      apiClient.setUserId('test-user');
+      apiClient.setToken('test-token');
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -176,6 +189,22 @@ describe('ApiClient', () => {
       });
 
       await expect(apiClient.get('/test')).rejects.toThrow(ApiError);
+    });
+
+    it('should call onUnauthorized callback on 401 error', async () => {
+      const onUnauthorized = vi.fn();
+      apiClient.setToken('expired-token');
+      apiClient.setOnUnauthorized(onUnauthorized);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: () => Promise.resolve({ message: 'Token expired' }),
+      });
+
+      await expect(apiClient.get('/test')).rejects.toThrow(ApiError);
+      expect(onUnauthorized).toHaveBeenCalled();
     });
   });
 });
@@ -189,12 +218,5 @@ describe('ApiError', () => {
     expect(error.data).toEqual({ field: 'name', message: 'required' });
     expect(error.message).toBe('API Error: 400 Bad Request');
     expect(error.name).toBe('ApiError');
-  });
-});
-
-describe('generateUserId', () => {
-  it('should generate a UUID', () => {
-    const userId = generateUserId();
-    expect(userId).toBe('test-uuid-1234-5678-9abc-def012345678');
   });
 });

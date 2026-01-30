@@ -2,30 +2,32 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUserStore } from '@/stores';
+import { useAuthStore } from '@/stores';
 
 export default function HomePage() {
   const router = useRouter();
-  const { initializeUser, isInitialized, onboarding } = useUserStore();
+  const { initialize, isInitialized, isAuthenticated, onboarding } = useAuthStore();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     // Prevent multiple initialization calls
     if (!hasInitialized.current) {
       hasInitialized.current = true;
-      initializeUser();
+      initialize();
     }
-  }, [initializeUser]);
+  }, [initialize]);
 
   useEffect(() => {
     if (isInitialized) {
-      if (onboarding.isComplete) {
+      if (!isAuthenticated) {
+        router.replace('/login');
+      } else if (onboarding.isComplete) {
         router.replace('/dashboard');
       } else {
         router.replace('/onboarding');
       }
     }
-  }, [isInitialized, onboarding.isComplete, router]);
+  }, [isInitialized, isAuthenticated, onboarding.isComplete, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-primary-50 to-white dark:from-neutral-900 dark:to-neutral-800">

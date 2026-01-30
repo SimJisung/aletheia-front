@@ -1,19 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, Button, Textarea } from '@/components/ui';
 import { MoodSelector } from '@/components/fragments';
-import { useUserStore } from '@/stores';
+import { useAuthStore } from '@/stores';
 import { fragmentsApi } from '@/lib/api';
-import { ALL_VALUE_AXES, VALUE_AXIS_META, MOOD_OPTIONS, type ValueAxis, type MoodLevel } from '@/types';
+import { ALL_VALUE_AXES, VALUE_AXIS_META, type ValueAxis, type MoodLevel } from '@/types';
 import { cn } from '@/lib/utils';
 
 type Step = 'welcome' | 'first-thought' | 'values' | 'complete';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { completeOnboardingStep, onboarding } = useUserStore();
+  const { completeOnboardingStep, onboarding, isAuthenticated, isInitialized, initialize } = useAuthStore();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    if (isInitialized) {
+      if (!isAuthenticated) {
+        router.replace('/login');
+      } else if (onboarding.isComplete) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [isInitialized, isAuthenticated, onboarding.isComplete, router]);
 
   const [currentStep, setCurrentStep] = useState<Step>(onboarding.currentStep);
   const [thoughtText, setThoughtText] = useState('');

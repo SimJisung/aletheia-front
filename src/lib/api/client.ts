@@ -1,9 +1,10 @@
 /**
  * API 클라이언트 기본 설정
- * aletheia-core API와 통신
+ * aletheia-core API와 통신 (JWT Bearer 토큰 인증)
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const TOKEN_KEY = 'pros-auth-token';
 
 export class ApiError extends Error {
   constructor(
@@ -22,32 +23,56 @@ interface RequestOptions extends RequestInit {
 
 class ApiClient {
   private baseUrl: string;
-  private userId: string | null = null;
+  private token: string | null = null;
+  private onUnauthorized: (() => void) | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
-  setUserId(userId: string) {
-    this.userId = userId;
+  /**
+   * 인증되지 않은 경우 호출할 콜백 설정
+   */
+  setOnUnauthorized(callback: () => void) {
+    this.onUnauthorized = callback;
+  }
+
+  /**
+   * JWT 토큰 설정
+   */
+  setToken(token: string) {
+    this.token = token;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('pros-user-id', userId);
+      localStorage.setItem(TOKEN_KEY, token);
     }
   }
 
-  getUserId(): string | null {
-    if (this.userId) return this.userId;
+  /**
+   * JWT 토큰 조회
+   */
+  getToken(): string | null {
+    if (this.token) return this.token;
     if (typeof window !== 'undefined') {
-      this.userId = localStorage.getItem('pros-user-id');
+      this.token = localStorage.getItem(TOKEN_KEY);
     }
-    return this.userId;
+    return this.token;
   }
 
-  clearUserId() {
-    this.userId = null;
+  /**
+   * 토큰 삭제 (로그아웃)
+   */
+  clearToken() {
+    this.token = null;
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('pros-user-id');
+      localStorage.removeItem(TOKEN_KEY);
     }
+  }
+
+  /**
+   * 인증 여부 확인
+   */
+  isAuthenticated(): boolean {
+    return !!this.getToken();
   }
 
   private buildUrl(endpoint: string, params?: Record<string, string | number | undefined>): string {
@@ -66,14 +91,14 @@ class ApiClient {
     const { params, ...fetchOptions } = options;
     const url = this.buildUrl(endpoint, params);
 
-    const userId = this.getUserId();
-    if (!userId) {
-      throw new ApiError(401, 'User ID not set');
+    const token = this.getToken();
+    if (!token) {
+      throw new ApiError(401, 'Not authenticated');
     }
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      'X-User-Id': userId,
+      Authorization: `Bearer ${token}`,
       ...options.headers,
     };
 
@@ -89,6 +114,13 @@ class ApiClient {
       } catch {
         errorData = null;
       }
+
+      // 401 에러 시 콜백 호출 (토큰 만료 등)
+      if (response.status === 401 && this.onUnauthorized) {
+        this.clearToken();
+        this.onUnauthorized();
+      }
+
       throw new ApiError(response.status, response.statusText, errorData);
     }
 
@@ -111,6 +143,13 @@ class ApiClient {
     });
   }
 
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
@@ -118,8 +157,3 @@ class ApiClient {
 
 // 싱글톤 인스턴스
 export const apiClient = new ApiClient(API_BASE_URL);
-
-// UUID 생성 유틸리티
-export function generateUserId(): string {
-  return crypto.randomUUID();
-}

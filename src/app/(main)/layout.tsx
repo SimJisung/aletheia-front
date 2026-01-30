@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
-import { useUserStore } from '@/stores';
+import { useAuthStore } from '@/stores';
 
 export default function MainAppLayout({
   children,
@@ -11,22 +11,32 @@ export default function MainAppLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isInitialized, initializeUser, onboarding } = useUserStore();
+  const { isInitialized, isAuthenticated, initialize, onboarding } = useAuthStore();
 
   useEffect(() => {
-    initializeUser();
-  }, [initializeUser]);
+    initialize();
+  }, [initialize]);
 
   useEffect(() => {
-    if (isInitialized && !onboarding.isComplete) {
-      router.push('/onboarding');
+    if (isInitialized) {
+      if (!isAuthenticated) {
+        // 인증되지 않은 경우 로그인 페이지로
+        router.replace('/login');
+      } else if (!onboarding.isComplete) {
+        // 온보딩이 완료되지 않은 경우
+        router.replace('/onboarding');
+      }
     }
-  }, [isInitialized, onboarding.isComplete, router]);
+  }, [isInitialized, isAuthenticated, onboarding.isComplete, router]);
 
-  if (!isInitialized) {
+  // 로딩 중이거나 인증되지 않은 경우
+  if (!isInitialized || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-2xl">💡</div>
+        <div className="animate-pulse text-2xl" role="status" aria-label="로딩 중">
+          <span aria-hidden="true">💡</span>
+          <span className="sr-only">로딩 중</span>
+        </div>
       </div>
     );
   }
