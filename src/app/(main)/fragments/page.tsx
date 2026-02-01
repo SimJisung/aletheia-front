@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import Link from 'next/link';
-import { Button } from '@/components/ui';
 import { FragmentInputForm, FragmentList, SimilarFragmentSearch } from '@/components/fragments';
 import { cn } from '@/lib/utils';
 

@@ -1,28 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, EmptyState, Skeleton } from '@/components/ui';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, EmptyState, Skeleton, Button } from '@/components/ui';
 import { valuesApi } from '@/lib/api';
+import { MESSAGES } from '@/lib/constants/messages';
 import { VALUE_AXIS_META, type ValueConflict } from '@/types';
 
 export function ValueConflictsList() {
   const [conflicts, setConflicts] = useState<ValueConflict[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadConflicts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await valuesApi.getConflicts();
+      setConflicts(data);
+    } catch (err) {
+      console.error('Failed to load conflicts:', err);
+      setError(MESSAGES.errors.loadConflicts);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadConflicts = async () => {
-      try {
-        const data = await valuesApi.getConflicts();
-        setConflicts(data);
-      } catch (err) {
-        console.error('Failed to load conflicts:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadConflicts();
-  }, []);
+  }, [loadConflicts]);
 
   if (isLoading) {
     return (
@@ -33,12 +38,27 @@ export function ValueConflictsList() {
     );
   }
 
+  if (error) {
+    return (
+      <EmptyState
+        icon={<span className="text-4xl">⚠️</span>}
+        title="데이터를 불러올 수 없어요"
+        description={error}
+        action={
+          <Button variant="outline" onClick={loadConflicts}>
+            {MESSAGES.actions.retry}
+          </Button>
+        }
+      />
+    );
+  }
+
   if (conflicts.length === 0) {
     return (
       <EmptyState
         icon={<span className="text-4xl">✨</span>}
-        title="발견된 긴장이 없어요"
-        description="더 많은 생각을 기록하면 가치 간 긴장을 분석해드려요"
+        title={MESSAGES.empty.conflicts.title}
+        description={MESSAGES.empty.conflicts.description}
       />
     );
   }
@@ -54,12 +74,14 @@ export function ValueConflictsList() {
 
       {/* 긴장 목록 */}
       {conflicts.map((conflict, index) => {
-        const fromMeta = VALUE_AXIS_META[conflict.fromAxis];
-        const toMeta = VALUE_AXIS_META[conflict.toAxis];
-        const strengthBars = Math.ceil(conflict.weight * 5);
+        const axis1Key = conflict.axis1 as keyof typeof VALUE_AXIS_META;
+        const axis2Key = conflict.axis2 as keyof typeof VALUE_AXIS_META;
+        const fromMeta = VALUE_AXIS_META[axis1Key];
+        const toMeta = VALUE_AXIS_META[axis2Key];
+        const strengthBars = Math.ceil(conflict.strength * 5);
 
         return (
-          <Card key={index} variant="bordered" padding="md">
+          <Card key={index} variant="default" padding="md">
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

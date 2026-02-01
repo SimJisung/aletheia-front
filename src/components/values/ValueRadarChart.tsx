@@ -22,8 +22,20 @@ export function ValueRadarChart({ nodes }: ValueRadarChartProps) {
     fullMark: 1,
   }));
 
+  // Generate description for screen readers
+  const chartDescription = nodes
+    .map((node) => {
+      const meta = VALUE_AXIS_META[node.axis];
+      return `${meta.displayNameKo}: ${node.avgValence.toFixed(2)}`;
+    })
+    .join(', ');
+
   return (
-    <div className="w-full h-[300px] md:h-[400px]">
+    <div
+      className="w-full h-[300px] md:h-[400px]"
+      role="img"
+      aria-label={`8가지 가치 분포 레이더 차트. ${chartDescription}`}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data}>
           <PolarGrid stroke="#e5e7eb" />

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, Badge } from '@/components/ui';
+import { Card, CardContent } from '@/components/ui';
 import { VALUE_AXIS_META, trendToIcon, type ValueNode } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ export function ValueAxesGrid({ nodes }: ValueAxesGridProps) {
         return (
           <Link key={node.axis} href={`/values/${node.axis.toLowerCase()}`}>
             <Card
-              variant="bordered"
+              variant="default"
               padding="sm"
               className="hover:border-primary-300 dark:hover:border-primary-600 transition-colors h-full"
             >

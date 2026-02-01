@@ -1,42 +1,58 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button, EmptyState, Skeleton } from '@/components/ui';
 import { DecisionResultView } from '@/components/decisions';
 import { decisionsApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
+import { isValidUuid } from '@/lib/utils/params';
+import { MESSAGES } from '@/lib/constants/messages';
 import type { Decision } from '@/types';
 
 export default function DecisionDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const id = params.id as string;
+  const id = typeof params.id === 'string' ? params.id : '';
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [decision, setDecision] = useState<Decision | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDecision = async () => {
+  const loadDecision = useCallback(async (signal?: AbortSignal) => {
     try {
       setIsLoading(true);
-      const data = await decisionsApi.getById(id);
+      setError(null);
+      const data = await decisionsApi.getById(id, { signal });
       setDecision(data);
     } catch (err) {
-      setError('결정을 불러오는데 실패했습니다.');
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setError(MESSAGES.errors.loadDecision);
       console.error('Failed to load decision:', err);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadDecision();
   }, [id]);
 
+  useEffect(() => {
+    if (!isValidUuid(id)) {
+      setError(MESSAGES.errors.invalidId);
+      setIsLoading(false);
+      return;
+    }
+
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    loadDecision(abortControllerRef.current.signal);
+
+    return () => abortControllerRef.current?.abort();
+  }, [id, loadDecision]);
+
   const handleFeedbackSubmitted = () => {
-    loadDecision();
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    loadDecision(abortControllerRef.current.signal);
   };
 
   if (isLoading) {

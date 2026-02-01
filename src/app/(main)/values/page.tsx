@@ -1,38 +1,42 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, Skeleton } from '@/components/ui';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, Skeleton, Tabs, TabList, TabTrigger, TabPanel, EmptyState, Button } from '@/components/ui';
 import { ValueSummaryCard, ValueAxesGrid, ValueRadarChart, ValueConflictsList } from '@/components/values';
 import { valuesApi } from '@/lib/api';
+import { MESSAGES } from '@/lib/constants/messages';
 import type { ValueGraph, ValueSummary } from '@/types';
-import { cn } from '@/lib/utils';
-
-type TabType = 'overview' | 'conflicts';
 
 export default function ValuesPage() {
   const [graph, setGraph] = useState<ValueGraph | null>(null);
   const [summary, setSummary] = useState<ValueSummary | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const [graphData, summaryData] = await Promise.all([
+        valuesApi.getGraph(signal),
+        valuesApi.getSummary(signal),
+      ]);
+      setGraph(graphData);
+      setSummary(summaryData);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setError(MESSAGES.errors.loadValue);
+      console.error('Failed to load value data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [graphData, summaryData] = await Promise.all([
-          valuesApi.getGraph(),
-          valuesApi.getSummary(),
-        ]);
-        setGraph(graphData);
-        setSummary(summaryData);
-      } catch (err) {
-        console.error('Failed to load value data:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
+  }, [loadData]);
 
   if (isLoading) {
     return (
@@ -45,6 +49,21 @@ export default function ValuesPage() {
           ))}
         </div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        icon={<span className="text-4xl">⚠️</span>}
+        title="데이터를 불러올 수 없어요"
+        description={error}
+        action={
+          <Button variant="outline" onClick={() => loadData()}>
+            {MESSAGES.actions.retry}
+          </Button>
+        }
+      />
     );
   }
 
@@ -64,42 +83,24 @@ export default function ValuesPage() {
       {summary && <ValueSummaryCard summary={summary} />}
 
       {/* 탭 */}
-      <div className="flex gap-2 border-b border-neutral-200 dark:border-neutral-700">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-            activeTab === 'overview'
-              ? 'border-primary-600 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-          )}
-        >
-          전체 보기
-        </button>
-        <button
-          onClick={() => setActiveTab('conflicts')}
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-            activeTab === 'conflicts'
-              ? 'border-primary-600 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-          )}
-        >
-          ⚡ 가치 긴장
-          {summary && summary.conflictCount > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">
-              {summary.conflictCount}
-            </span>
-          )}
-        </button>
-      </div>
+      <Tabs defaultValue="overview">
+        <TabList aria-label="가치 지도 탭">
+          <TabTrigger value="overview">전체 보기</TabTrigger>
+          <TabTrigger value="conflicts">
+            ⚡ 가치 긴장
+            {summary && summary.conflictCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">
+                {summary.conflictCount}
+              </span>
+            )}
+          </TabTrigger>
+        </TabList>
 
-      {/* 컨텐츠 */}
-      {activeTab === 'overview' ? (
-        <div className="space-y-6">
+        {/* 컨텐츠 */}
+        <TabPanel value="overview" className="mt-6 space-y-6">
           {/* 레이더 차트 */}
           {graph && (
-            <Card variant="bordered" padding="md">
+            <Card variant="default" padding="md">
               <CardContent>
                 <h3 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-4">
                   가치 분포
@@ -118,10 +119,12 @@ export default function ValuesPage() {
               <ValueAxesGrid nodes={graph.nodes} />
             </div>
           )}
-        </div>
-      ) : (
-        <ValueConflictsList />
-      )}
+        </TabPanel>
+
+        <TabPanel value="conflicts" className="mt-6">
+          <ValueConflictsList />
+        </TabPanel>
+      </Tabs>
     </div>
   );
 }

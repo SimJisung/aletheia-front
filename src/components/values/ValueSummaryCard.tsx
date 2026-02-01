@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, Skeleton, Button } from '@/components/ui';
 import { valuesApi } from '@/lib/api';
+import { MESSAGES } from '@/lib/constants/messages';
 import { VALUE_AXIS_META, trendToIcon, type ValueSummary } from '@/types';
 
 interface ValueSummaryCardProps {
@@ -12,27 +13,31 @@ interface ValueSummaryCardProps {
 export function ValueSummaryCard({ summary: initialSummary }: ValueSummaryCardProps) {
   const [summary, setSummary] = useState<ValueSummary | null>(initialSummary || null);
   const [isLoading, setIsLoading] = useState(!initialSummary);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSummary = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await valuesApi.getSummary();
+      setSummary(data);
+    } catch (err) {
+      console.error('Failed to load value summary:', err);
+      setError(MESSAGES.errors.loadSummary);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!initialSummary) {
       loadSummary();
     }
-  }, [initialSummary]);
-
-  const loadSummary = async () => {
-    try {
-      const data = await valuesApi.getSummary();
-      setSummary(data);
-    } catch (err) {
-      console.error('Failed to load value summary:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [initialSummary, loadSummary]);
 
   if (isLoading) {
     return (
-      <Card variant="bordered" padding="md">
+      <Card variant="default" padding="md">
         <div className="space-y-3">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="h-4 w-full" />
@@ -42,13 +47,27 @@ export function ValueSummaryCard({ summary: initialSummary }: ValueSummaryCardPr
     );
   }
 
+  if (error) {
+    return (
+      <Card variant="default" padding="md">
+        <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+          <Button variant="outline" size="sm" onClick={loadSummary}>
+            {MESSAGES.actions.retry}
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
   if (!summary) return null;
 
-  const topPositive = summary.topPositiveValues[0];
-  const topPositiveMeta = topPositive ? VALUE_AXIS_META[topPositive.axis] : null;
+  // topPositiveValues는 ValueAxis 이름 문자열 배열 (예: ["GROWTH", "HEALTH"])
+  const topPositiveAxis = summary.topPositiveValues[0] as keyof typeof VALUE_AXIS_META | undefined;
+  const topPositiveMeta = topPositiveAxis ? VALUE_AXIS_META[topPositiveAxis] : null;
 
   return (
-    <Card variant="bordered" padding="md">
+    <Card variant="default" padding="md">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           💎 가치 요약
@@ -66,9 +85,6 @@ export function ValueSummaryCard({ summary: initialSummary }: ValueSummaryCardPr
               <p className="text-sm text-neutral-500">가장 긍정적인 가치</p>
               <p className="font-semibold text-neutral-900 dark:text-neutral-100">
                 {topPositiveMeta.displayNameKo}
-                <span className="ml-2 text-success-600">
-                  +{topPositive.avgValence.toFixed(1)}
-                </span>
               </p>
             </div>
           </div>
@@ -79,7 +95,7 @@ export function ValueSummaryCard({ summary: initialSummary }: ValueSummaryCardPr
           <div>
             <p className="text-sm text-neutral-500">총 기록 수</p>
             <p className="text-lg font-semibold">
-              {Math.round(summary.totalFragmentCount)}개
+              {summary.totalFragments}개
             </p>
           </div>
           <div>

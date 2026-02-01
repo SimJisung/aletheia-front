@@ -6,6 +6,7 @@ import { MoodSelector } from './MoodSelector';
 import { TopicSelector } from './TopicSelector';
 import { fragmentsApi } from '@/lib/api';
 import { useFormSubmit } from '@/hooks';
+import { serializeTopics } from '@/lib/utils/topics';
 import { MOOD_OPTIONS, type MoodLevel, type ThoughtFragment } from '@/types';
 
 interface FragmentInputFormProps {
@@ -26,14 +27,14 @@ export function FragmentInputForm({
   const formId = useId();
   const [text, setText] = useState('');
   const [mood, setMood] = useState<MoodLevel | null>(null);
-  const [topic, setTopic] = useState<string | null>(null);
+  const [topics, setTopics] = useState<string[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const { execute, isLoading, error: submitError, reset } = useFormSubmit(
     async () => {
       const fragment = await fragmentsApi.create({
         text: text.trim(),
-        topicHint: topic || undefined,
+        topicHint: serializeTopics(topics),
       });
       return fragment;
     },
@@ -55,7 +56,7 @@ export function FragmentInputForm({
     if (result) {
       setText('');
       setMood(null);
-      setTopic(null);
+      setTopics([]);
       reset();
       onSuccess?.(result);
     }
@@ -65,7 +66,7 @@ export function FragmentInputForm({
   const error = validationError || submitError;
 
   return (
-    <Card variant="bordered" padding={compact ? 'sm' : 'md'}>
+    <Card variant="default" padding={compact ? 'sm' : 'md'}>
       <form onSubmit={handleSubmit} aria-describedby={error ? `${formId}-error` : undefined}>
         <CardContent className="space-y-4">
           {/* 텍스트 입력 */}
@@ -107,8 +108,8 @@ export function FragmentInputForm({
                 관련 주제 (선택)
               </p>
               <TopicSelector
-                value={topic}
-                onChange={setTopic}
+                value={topics}
+                onChange={setTopics}
                 aria-labelledby={`${formId}-topic-label`}
               />
             </div>

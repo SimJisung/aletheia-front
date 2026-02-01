@@ -1,35 +1,44 @@
 'use client';
 
 import { useState } from 'react';
-import { decisionsApi } from '@/lib/api';
-import { useFormSubmit } from '@/hooks';
-import { FEEDBACK_OPTIONS, type FeedbackType } from '@/types';
+import { decisionsApi, ApiError } from '@/lib/api';
+import { FEEDBACK_OPTIONS, type FeedbackType, type FeedbackResponse } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface FeedbackButtonsProps {
   decisionId: string;
-  onSuccess?: () => void;
+  onSuccess?: (response?: FeedbackResponse) => void;
 }
 
 export function FeedbackButtons({ decisionId, onSuccess }: FeedbackButtonsProps) {
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
-
-  const { execute, isLoading, error } = useFormSubmit(
-    async (type: FeedbackType) => {
-      await decisionsApi.submitFeedback(decisionId, { feedbackType: type });
-      return type;
-    },
-    {
-      errorMessage: '피드백 제출에 실패했습니다. 다시 시도해주세요.',
-      onSuccess,
-    }
-  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isAlreadySubmitted, setIsAlreadySubmitted] = useState(false);
+  const [feedbackResult, setFeedbackResult] = useState<FeedbackResponse | null>(null);
 
   const handleSubmit = async (type: FeedbackType) => {
+    if (isLoading || isAlreadySubmitted) return;
+
     setSelectedType(type);
-    const result = await execute(type);
-    if (!result) {
-      setSelectedType(null);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await decisionsApi.submitFeedback(decisionId, { feedbackType: type });
+      setFeedbackResult(response);
+      onSuccess?.(response);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setIsAlreadySubmitted(true);
+        setError('이미 피드백이 제출되었습니다.');
+        onSuccess?.();
+      } else {
+        setSelectedType(null);
+        setError('피드백 제출에 실패했습니다. 다시 시도해주세요.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -55,7 +64,7 @@ export function FeedbackButtons({ decisionId, onSuccess }: FeedbackButtonsProps)
           <button
             key={option.type}
             onClick={() => handleSubmit(option.type)}
-            disabled={isLoading}
+            disabled={isLoading || feedbackResult !== null}
             aria-pressed={selectedType === option.type}
             aria-label={`${option.label} 피드백 제출`}
             className={cn(
@@ -75,6 +84,26 @@ export function FeedbackButtons({ decisionId, onSuccess }: FeedbackButtonsProps)
           </button>
         ))}
       </div>
+
+      {/* 피드백 제출 결과 - Impact 정보 표시 */}
+      {feedbackResult && (
+        <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <p className="text-sm text-green-800 dark:text-green-200 font-medium mb-2">
+            ✓ 피드백이 반영되었습니다
+          </p>
+          <p className="text-sm text-green-700 dark:text-green-300">
+            {feedbackResult.impact.effectDescription}
+          </p>
+          {feedbackResult.impact.stats && (
+            <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+              총 {feedbackResult.impact.stats.totalWithFeedback}개의 피드백 중
+              만족 {feedbackResult.impact.stats.satisfiedCount}개,
+              보통 {feedbackResult.impact.stats.neutralCount}개,
+              아쉬움 {feedbackResult.impact.stats.regretCount}개
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

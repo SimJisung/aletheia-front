@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { DecisionCard } from './DecisionCard';
-import { Button, EmptyState, SkeletonList, Badge } from '@/components/ui';
+import { Button, EmptyState, SkeletonList } from '@/components/ui';
 import { decisionsApi } from '@/lib/api';
 import { isPendingFeedback, type Decision } from '@/types';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,7 @@ export function DecisionList() {
     try {
       setIsLoading(true);
       const [listResponse, pendingResponse] = await Promise.all([
-        decisionsApi.list(20, offset),
+        decisionsApi.list({ limit: 20, offset }),
         offset === 0 ? decisionsApi.getPendingFeedback() : Promise.resolve([]),
       ]);
 

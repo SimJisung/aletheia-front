@@ -3,34 +3,33 @@
  * aletheia-core의 Decision 도메인 모델과 매핑
  */
 
-import { ValueAxis } from './value';
-
 export interface DecisionResult {
-  probabilityA: number; // 0.0 ~ 1.0
-  probabilityB: number; // 0.0 ~ 1.0
-  regretRiskA: number; // 0.0 ~ 1.0
-  regretRiskB: number; // 0.0 ~ 1.0
+  probabilityA: number; // 0 ~ 100 (percentage)
+  probabilityB: number; // 0 ~ 100 (percentage)
+  regretRiskA: number; // 0 ~ 100 (percentage)
+  regretRiskB: number; // 0 ~ 100 (percentage)
   evidenceFragmentIds: string[];
-  valueAlignment: Record<ValueAxis, number>;
+  valueAlignment: Record<string, number>; // axis name (e.g., "GROWTH") -> score
 }
 
 export interface Decision {
   id: string;
-  userId: string;
   title: string;
   optionA: string;
   optionB: string;
-  priorityAxis?: ValueAxis;
+  priorityAxis?: string; // ValueAxis name (e.g., "GROWTH")
   result: DecisionResult;
   createdAt: string;
   feedback?: DecisionFeedback;
+  explanation?: DecisionExplanation;
+  breakdown?: CalculationBreakdown; // detail=true 시 포함
 }
 
 export interface CreateDecisionRequest {
   title: string;
   optionA: string;
   optionB: string;
-  priorityAxis?: ValueAxis;
+  priorityAxis?: string; // ValueAxis name
 }
 
 export interface DecisionListResponse {
@@ -41,8 +40,9 @@ export interface DecisionListResponse {
 
 export interface DecisionExplanation {
   decisionId: string;
-  explanation: string;
-  generatedAt: string;
+  summary: string;
+  evidenceSummary: string;
+  valueSummary: string;
 }
 
 // 피드백 타입
@@ -57,6 +57,102 @@ export interface DecisionFeedback {
 
 export interface SubmitFeedbackRequest {
   feedbackType: FeedbackType;
+}
+
+// ============================================
+// Feedback Impact (피드백 제출 후 반환되는 영향도 정보)
+// ============================================
+
+export interface FeedbackResponse {
+  id: string;
+  decisionId: string;
+  feedbackType: FeedbackType;
+  createdAt: string;
+  impact: FeedbackImpact;
+}
+
+export interface FeedbackImpact {
+  stats: FeedbackStats;
+  parameterUpdate: ParameterUpdate | null;
+  effectDescription: string;
+}
+
+export interface FeedbackStats {
+  totalDecisions: number;
+  totalWithFeedback: number;
+  satisfiedCount: number;
+  neutralCount: number;
+  regretCount: number;
+  regretRate: number; // 0.0 ~ 1.0
+}
+
+export interface ParameterUpdate {
+  lambdaBefore: number;
+  lambdaAfter: number;
+  regretPriorBefore: number;
+  regretPriorAfter: number;
+  reason: string;
+}
+
+// ============================================
+// Calculation Breakdown (detail=true 시 반환되는 계산 상세)
+// ============================================
+
+export interface CalculationBreakdown {
+  fit: FitBreakdown;
+  regret: RegretBreakdown;
+  parameters: CalculationParameters;
+  scores: ScoreBreakdown;
+}
+
+export interface FitBreakdown {
+  fitScoreA: number;
+  fitScoreB: number;
+  totalWeight: number;
+  priorityAxisBoost: number;
+  isOptionAMoreFit: boolean;
+  fitDifference: number;
+  fragmentContributions: FragmentContribution[];
+}
+
+export interface FragmentContribution {
+  fragmentId: string;
+  fragmentSummary: string;
+  similarity: number;
+  valenceWeight: number;
+  priorityWeight: number;
+  contributionToA: number;
+  contributionToB: number;
+  favoredOption: 'OPTION_A' | 'OPTION_B' | 'NEUTRAL';
+}
+
+export interface RegretBreakdown {
+  historicalRegretRate: number;
+  valenceVariance: number;
+  optionNegativityA: number;
+  optionNegativityB: number;
+  baseRegret: number;
+  regretRiskA: number;
+  regretRiskB: number;
+  feedbackCount: number;
+  dataReliability: 'LOW' | 'MEDIUM' | 'HIGH';
+  isOptionASafer: boolean;
+  formula: string;
+}
+
+export interface CalculationParameters {
+  lambda: number;
+  regretPrior: number;
+  priorityAxisBoost: number;
+  volatilityWeight: number;
+  negativityWeight: number;
+}
+
+export interface ScoreBreakdown {
+  scoreA: number;
+  scoreB: number;
+  scoreDifference: number;
+  formula: string;
 }
 
 // 피드백 옵션 정의 (UI용)

@@ -6,12 +6,14 @@ import Link from 'next/link';
 import { Card, CardContent, Badge, Button, EmptyState, Skeleton } from '@/components/ui';
 import { valuesApi } from '@/lib/api';
 import { formatValence } from '@/lib/utils';
+import { MESSAGES } from '@/lib/constants/messages';
 import { VALUE_AXIS_META, trendToIcon, ALL_VALUE_AXES, type ValueNode, type ValueEdge, type ValueAxis } from '@/types';
 import { cn } from '@/lib/utils';
 
 export default function ValueAxisDetailPage() {
   const params = useParams();
-  const axisParam = (params.axis as string).toUpperCase() as ValueAxis;
+  const axisRaw = typeof params.axis === 'string' ? params.axis : '';
+  const axisParam = axisRaw.toUpperCase() as ValueAxis;
 
   const [node, setNode] = useState<ValueNode | null>(null);
   const [edges, setEdges] = useState<ValueEdge[]>([]);
@@ -22,16 +24,20 @@ export default function ValueAxisDetailPage() {
 
   useEffect(() => {
     if (!ALL_VALUE_AXES.includes(axisParam)) {
-      setError('존재하지 않는 가치축입니다.');
+      setError(MESSAGES.errors.invalidAxis);
       setIsLoading(false);
       return;
     }
 
+    const controller = new AbortController();
+
     const loadData = async () => {
       try {
+        setIsLoading(true);
+        setError(null);
         const [nodeData, edgesData] = await Promise.all([
-          valuesApi.getAxis(axisParam),
-          valuesApi.getEdges(),
+          valuesApi.getAxis(axisParam, controller.signal),
+          valuesApi.getEdges(controller.signal),
         ]);
         setNode(nodeData);
         // 현재 축과 관련된 엣지만 필터링
@@ -41,7 +47,8 @@ export default function ValueAxisDetailPage() {
           )
         );
       } catch (err) {
-        setError('데이터를 불러오는데 실패했습니다.');
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(MESSAGES.errors.loadValue);
         console.error('Failed to load value axis:', err);
       } finally {
         setIsLoading(false);
@@ -49,6 +56,8 @@ export default function ValueAxisDetailPage() {
     };
 
     loadData();
+
+    return () => controller.abort();
   }, [axisParam]);
 
   if (isLoading) {
@@ -103,7 +112,7 @@ export default function ValueAxisDetailPage() {
       </div>
 
       {/* 현재 상태 */}
-      <Card variant="bordered" padding="md">
+      <Card variant="default" padding="md">
         <CardContent className="space-y-4">
           <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">
             현재 상태
@@ -164,7 +173,7 @@ export default function ValueAxisDetailPage() {
       </Card>
 
       {/* 관계된 가치들 */}
-      <Card variant="bordered" padding="md">
+      <Card variant="default" padding="md">
         <CardContent className="space-y-4">
           <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">
             관계된 가치들

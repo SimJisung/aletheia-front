@@ -6,7 +6,7 @@ import { Card, CardContent, Button, Textarea } from '@/components/ui';
 import { MoodSelector } from '@/components/fragments';
 import { useUserStore } from '@/stores';
 import { fragmentsApi } from '@/lib/api';
-import { ALL_VALUE_AXES, VALUE_AXIS_META, MOOD_OPTIONS, type ValueAxis, type MoodLevel } from '@/types';
+import { ALL_VALUE_AXES, VALUE_AXIS_META, type ValueAxis, type MoodLevel } from '@/types';
 import { cn } from '@/lib/utils';
 
 type Step = 'welcome' | 'first-thought' | 'values' | 'complete';
@@ -20,6 +20,7 @@ export default function OnboardingPage() {
   const [mood, setMood] = useState<MoodLevel | null>(null);
   const [selectedValues, setSelectedValues] = useState<ValueAxis[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const goToStep = (step: Step) => {
     setCurrentStep(step);
@@ -34,6 +35,7 @@ export default function OnboardingPage() {
     if (!thoughtText.trim()) return;
 
     setIsSubmitting(true);
+    setError(null);
     try {
       await fragmentsApi.create({
         text: thoughtText.trim(),
@@ -42,6 +44,8 @@ export default function OnboardingPage() {
       goToStep('values');
     } catch (err) {
       console.error('Failed to create first fragment:', err);
+      const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다';
+      setError(`생각을 저장하는 중 문제가 발생했습니다: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -133,6 +137,18 @@ export default function OnboardingPage() {
                   💡 첫 기록이 완료되면, 당신만의 가치 그래프가 형성되기 시작합니다.
                 </p>
               </div>
+
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                  <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                  <button
+                    onClick={() => setError(null)}
+                    className="text-sm text-red-600 dark:text-red-400 underline mt-1 hover:no-underline"
+                  >
+                    다시 시도하기
+                  </button>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <Button

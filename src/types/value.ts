@@ -46,18 +46,30 @@ export interface ValueAxisDefinition {
 }
 
 export interface ValueConflict {
-  fromAxis: ValueAxis;
-  toAxis: ValueAxis;
-  weight: number;
-  description?: string;
+  axis1: string; // ValueAxis name (백엔드와 일치)
+  axis2: string; // ValueAxis name
+  strength: number; // 0.0 ~ 1.0 (백엔드: weight → strength)
+  description: string;
 }
 
 export interface ValueSummary {
-  topPositiveValues: ValueNode[];
-  topNegativeValues: ValueNode[];
+  topPositiveValues: string[]; // ValueAxis names (e.g., ["GROWTH", "HEALTH"])
+  topNegativeValues: string[]; // ValueAxis names
   dominantTrend: ValueTrend;
   conflictCount: number;
-  totalFragmentCount: number;
+  totalFragments: number; // Backend uses 'totalFragments', not 'totalFragmentCount'
+}
+
+// 가치 중요도 설정 (1-10 척도)
+// 백엔드는 Map<String, Double> 형태로 axis name을 키로 사용
+export interface ValueImportance {
+  importance: Record<string, number>; // axis name (e.g., "GROWTH") -> importance (1-10)
+  version: number;
+  updatedAt: string;
+}
+
+export interface SetValueImportanceRequest {
+  importance: Record<string, number>; // axis name -> importance (1-10)
 }
 
 // 가치축 메타데이터 (UI용)

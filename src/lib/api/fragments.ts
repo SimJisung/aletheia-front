@@ -25,8 +25,8 @@ export const fragmentsApi = {
    * 단일 기록 조회
    * GET /v1/fragments/{id}
    */
-  async getById(id: string): Promise<ThoughtFragment> {
-    return apiClient.get<ThoughtFragment>(`${BASE_PATH}/${id}`);
+  async getById(id: string, signal?: AbortSignal): Promise<ThoughtFragment> {
+    return apiClient.get<ThoughtFragment>(`${BASE_PATH}/${id}`, undefined, signal);
   },
 
   /**
@@ -49,10 +49,11 @@ export const fragmentsApi = {
    * 유사 기록 검색 (의미 기반)
    * GET /v1/fragments/similar
    */
-  async findSimilar(queryText: string, topK = 10): Promise<SimilarFragmentResult[]> {
-    return apiClient.get<SimilarFragmentResult[]>(`${BASE_PATH}/similar`, {
-      queryText,
-      topK,
-    });
+  async findSimilar(queryText: string, topK = 10, signal?: AbortSignal): Promise<SimilarFragmentResult[]> {
+    return apiClient.get<SimilarFragmentResult[]>(
+      `${BASE_PATH}/similar`,
+      { queryText, topK },
+      signal
+    );
   },
 };

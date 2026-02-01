@@ -5,6 +5,7 @@
 export * from './fragment';
 export * from './decision';
 export * from './value';
+export * from './auth';
 
 // API 공통 타입
 export interface ApiError {

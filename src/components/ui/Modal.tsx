@@ -1,23 +1,52 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useCallback, type ReactNode } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { modalBackdropVariants, modalContentVariants } from '@/lib/motion';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  description?: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  showCloseButton?: boolean;
+  closeOnBackdropClick?: boolean;
+  closeOnEsc?: boolean;
 }
 
-export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
-  // ESC 키로 닫기
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
+const sizes = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-xl',
+  full: 'max-w-[calc(100vw-2rem)]',
+};
 
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  description,
+  children,
+  size = 'md',
+  showCloseButton = true,
+  closeOnBackdropClick = true,
+  closeOnEsc = true,
+}: ModalProps) {
+  const handleEsc = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && closeOnEsc) {
+        onClose();
+      }
+    },
+    [onClose, closeOnEsc]
+  );
+
+  useEffect(() => {
     if (isOpen) {
       document.addEventListener('keydown', handleEsc);
       document.body.style.overflow = 'hidden';
@@ -27,65 +56,111 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
       document.removeEventListener('keydown', handleEsc);
       document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  const sizes = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-  };
+  }, [isOpen, handleEsc]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* 오버레이 */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <motion.div
+            className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm"
+            variants={modalBackdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            onClick={closeOnBackdropClick ? onClose : undefined}
+            aria-hidden="true"
+          />
 
-      {/* 모달 컨텐츠 */}
-      <div
-        className={cn(
-          'relative w-full bg-white dark:bg-neutral-800 rounded-2xl shadow-xl',
-          'animate-in slide-in p-6',
-          sizes[size]
-        )}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? 'modal-title' : undefined}
-      >
-        {/* 헤더 */}
-        {title && (
-          <div className="flex items-center justify-between mb-4">
-            <h2
-              id="modal-title"
-              className="text-lg font-semibold text-neutral-900 dark:text-neutral-100"
-            >
-              {title}
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:text-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-              aria-label="닫기"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
+          {/* Modal Content */}
+          <motion.div
+            className={cn(
+              'relative w-full bg-white dark:bg-neutral-900',
+              'rounded-2xl shadow-elevation-2xl',
+              'max-h-[calc(100vh-2rem)] overflow-hidden',
+              sizes[size]
+            )}
+            variants={modalContentVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? 'modal-title' : undefined}
+            aria-describedby={description ? 'modal-description' : undefined}
+          >
+            {/* Header */}
+            {(title || showCloseButton) && (
+              <div className="flex items-start justify-between p-6 pb-0">
+                <div className="space-y-1 pr-8">
+                  {title && (
+                    <h2
+                      id="modal-title"
+                      className="text-lg font-semibold text-neutral-900 dark:text-neutral-100"
+                    >
+                      {title}
+                    </h2>
+                  )}
+                  {description && (
+                    <p
+                      id="modal-description"
+                      className="text-sm text-neutral-500 dark:text-neutral-400"
+                    >
+                      {description}
+                    </p>
+                  )}
+                </div>
 
-        {/* 본문 */}
-        {children}
-      </div>
+                {showCloseButton && (
+                  <motion.button
+                    onClick={onClose}
+                    className={cn(
+                      'absolute top-4 right-4',
+                      'p-2 rounded-lg',
+                      'text-neutral-400 hover:text-neutral-600',
+                      'dark:text-neutral-500 dark:hover:text-neutral-300',
+                      'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+                      'transition-colors duration-150',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500'
+                    )}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    aria-label="Close modal"
+                  >
+                    <X className="w-5 h-5" />
+                  </motion.button>
+                )}
+              </div>
+            )}
+
+            {/* Body */}
+            <div className="p-6 overflow-y-auto max-h-[calc(100vh-10rem)]">
+              {children}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// Modal Footer utility component
+interface ModalFooterProps {
+  children: ReactNode;
+  className?: string;
+}
+
+export function ModalFooter({ children, className }: ModalFooterProps) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-end gap-3',
+        'pt-4 mt-4 border-t border-neutral-200 dark:border-neutral-800',
+        className
+      )}
+    >
+      {children}
     </div>
   );
 }

@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { Card, Badge } from '@/components/ui';
-import { formatRelativeTime, formatPercent } from '@/lib/utils';
-import { VALUE_AXIS_META, isPendingFeedback, type Decision } from '@/types';
+import { formatRelativeTime } from '@/lib/utils';
+import { VALUE_AXIS_META, isPendingFeedback, type Decision, type ValueAxis } from '@/types';
 
 interface DecisionCardProps {
   decision: Decision;
@@ -11,12 +11,13 @@ interface DecisionCardProps {
 
 export function DecisionCard({ decision }: DecisionCardProps) {
   const needsFeedback = isPendingFeedback(decision);
-  const priorityMeta = decision.priorityAxis ? VALUE_AXIS_META[decision.priorityAxis] : null;
+  const priorityAxisKey = decision.priorityAxis as ValueAxis | undefined;
+  const priorityMeta = priorityAxisKey ? VALUE_AXIS_META[priorityAxisKey] : null;
 
   return (
     <Link href={`/decisions/${decision.id}`}>
       <Card
-        variant="bordered"
+        variant="default"
         padding="md"
         className="hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
       >
@@ -53,14 +54,14 @@ export function DecisionCard({ decision }: DecisionCardProps) {
             <div>
               <span className="text-neutral-500">A: </span>
               <span className="font-medium text-primary-600">
-                {formatPercent(decision.result.probabilityA)}
+                {decision.result.probabilityA}%
               </span>
             </div>
             <span className="text-neutral-300 dark:text-neutral-600">vs</span>
             <div>
               <span className="text-neutral-500">B: </span>
               <span className="font-medium text-secondary-600">
-                {formatPercent(decision.result.probabilityB)}
+                {decision.result.probabilityB}%
               </span>
             </div>
           </div>

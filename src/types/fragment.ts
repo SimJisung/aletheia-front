@@ -5,13 +5,12 @@
 
 export interface ThoughtFragment {
   id: string;
-  userId: string;
   text: string;
   createdAt: string;
   moodValence: number; // -1.0 ~ +1.0 (부정 ~ 긍정)
   arousal: number; // 0.0 ~ 1.0 (차분 ~ 활발)
-  topicHint?: string;
-  isDeleted: boolean;
+  topicHint?: string | null;
+  hasEmbedding: boolean; // 임베딩 생성 완료 여부
 }
 
 export interface CreateFragmentRequest {

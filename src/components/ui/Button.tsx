@@ -1,73 +1,119 @@
 'use client';
 
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { motion, type HTMLMotionProps } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onAnimationStart' | 'onDrag' | 'onDragEnd' | 'onDragStart'> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'glass';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  leftIcon?: ReactNode;
+  rightIcon?: ReactNode;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', isLoading, disabled, children, ...props }, ref) => {
-    const baseStyles =
-      'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+  ({
+    className,
+    variant = 'primary',
+    size = 'md',
+    isLoading,
+    disabled,
+    leftIcon,
+    rightIcon,
+    children,
+    ...props
+  }, ref) => {
+    const baseStyles = cn(
+      'inline-flex items-center justify-center gap-2 font-medium rounded-xl',
+      'transition-all duration-150',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+      'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none'
+    );
 
     const variants = {
-      primary:
-        'bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-500',
-      secondary:
-        'bg-secondary-600 text-white hover:bg-secondary-700 focus-visible:ring-secondary-500',
-      outline:
-        'border-2 border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 focus-visible:ring-primary-500',
-      ghost:
-        'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800 focus-visible:ring-neutral-500',
-      danger:
-        'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500',
+      primary: cn(
+        'bg-gradient-to-br from-primary-500 to-primary-600 text-white',
+        'shadow-elevation-md hover:shadow-elevation-lg',
+        'hover:brightness-110',
+        'focus-visible:ring-primary-500',
+        'active:scale-[0.98]'
+      ),
+      secondary: cn(
+        'bg-secondary-100 text-secondary-700',
+        'dark:bg-secondary-900/30 dark:text-secondary-300',
+        'hover:bg-secondary-200 dark:hover:bg-secondary-900/50',
+        'focus-visible:ring-secondary-500',
+        'active:scale-[0.98]'
+      ),
+      outline: cn(
+        'border-2 border-primary-300 text-primary-600',
+        'dark:border-primary-700 dark:text-primary-400',
+        'hover:bg-primary-50 dark:hover:bg-primary-900/20',
+        'focus-visible:ring-primary-500',
+        'active:scale-[0.98]'
+      ),
+      ghost: cn(
+        'text-[var(--color-text-secondary)]',
+        'hover:bg-[var(--color-hover)]',
+        'focus-visible:ring-neutral-500',
+        'active:scale-[0.98]'
+      ),
+      danger: cn(
+        'bg-gradient-to-br from-error-500 to-error-600 text-white',
+        'shadow-elevation-md hover:shadow-elevation-lg',
+        'hover:brightness-110',
+        'focus-visible:ring-error-500',
+        'active:scale-[0.98]'
+      ),
+      glass: cn(
+        'bg-[var(--color-glass-subtle)]',
+        'backdrop-blur-[12px]',
+        'border border-[var(--color-glass-border)]',
+        'text-[var(--color-text-primary)]',
+        'shadow-[var(--shadow-glass-sm)]',
+        'hover:bg-[var(--color-glass-medium)]',
+        'hover:shadow-[var(--shadow-glass-md)]',
+        'focus-visible:ring-primary-500',
+        'active:scale-[0.98]'
+      ),
     };
 
     const sizes = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2 text-base',
-      lg: 'px-6 py-3 text-lg',
+      sm: 'h-8 px-3 text-sm',
+      md: 'h-10 px-4 text-base',
+      lg: 'h-12 px-6 text-lg',
     };
 
+    const iconSizes = {
+      sm: 'w-3.5 h-3.5',
+      md: 'w-4 h-4',
+      lg: 'w-5 h-5',
+    };
+
+    const isDisabled = disabled || isLoading;
+
     return (
-      <button
+      <motion.button
         ref={ref}
         className={cn(baseStyles, variants[variant], sizes[size], className)}
-        disabled={disabled || isLoading}
-        {...props}
+        disabled={isDisabled}
+        whileTap={!isDisabled ? { scale: 0.98 } : undefined}
+        {...(props as HTMLMotionProps<'button'>)}
       >
         {isLoading ? (
-          <>
-            <svg
-              className="animate-spin -ml-1 mr-2 h-4 w-4"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            로딩 중...
-          </>
-        ) : (
-          children
+          <Loader2 className={cn('animate-spin', iconSizes[size])} />
+        ) : leftIcon ? (
+          <span className={iconSizes[size]}>{leftIcon}</span>
+        ) : null}
+
+        <span>{children}</span>
+
+        {!isLoading && rightIcon && (
+          <span className={iconSizes[size]}>{rightIcon}</span>
         )}
-      </button>
+      </motion.button>
     );
   }
 );

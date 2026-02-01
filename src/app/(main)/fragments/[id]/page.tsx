@@ -7,12 +7,14 @@ import { Card, CardContent, Badge, Button, Modal, EmptyState, Skeleton, SafeText
 import { FragmentCard } from '@/components/fragments';
 import { fragmentsApi } from '@/lib/api';
 import { formatDateTime, formatValence } from '@/lib/utils';
+import { isValidUuid } from '@/lib/utils/params';
+import { MESSAGES } from '@/lib/constants/messages';
 import { valenceToEmoji, type ThoughtFragment, type SimilarFragmentResult } from '@/types';
 
 export default function FragmentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const id = typeof params.id === 'string' ? params.id : '';
 
   const [fragment, setFragment] = useState<ThoughtFragment | null>(null);
   const [similarFragments, setSimilarFragments] = useState<SimilarFragmentResult[]>([]);
@@ -22,18 +24,30 @@ export default function FragmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Validate UUID format
+    if (!isValidUuid(id)) {
+      setError(MESSAGES.errors.invalidId);
+      setIsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+
     const loadFragment = async () => {
       try {
         setIsLoading(true);
-        const data = await fragmentsApi.getById(id);
+        setError(null);
+        const data = await fragmentsApi.getById(id, controller.signal);
         setFragment(data);
 
         // 유사 기록 로드
-        const similar = await fragmentsApi.findSimilar(data.text, 5);
+        const similar = await fragmentsApi.findSimilar(data.text, 5, controller.signal);
         // 자기 자신 제외
         setSimilarFragments(similar.filter((s) => s.fragment.id !== id));
       } catch (err) {
-        setError('기록을 불러오는데 실패했습니다.');
+        // Ignore abort errors
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(MESSAGES.errors.loadFragment);
         console.error('Failed to load fragment:', err);
       } finally {
         setIsLoading(false);
@@ -41,6 +55,8 @@ export default function FragmentDetailPage() {
     };
 
     loadFragment();
+
+    return () => controller.abort();
   }, [id]);
 
   const handleDelete = async () => {
@@ -61,7 +77,7 @@ export default function FragmentDetailPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
-        <Card variant="bordered" padding="lg">
+        <Card variant="default" padding="lg">
           <div className="space-y-4">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-24 w-full" />
@@ -100,7 +116,7 @@ export default function FragmentDetailPage() {
       </Link>
 
       {/* 기록 상세 */}
-      <Card variant="bordered" padding="lg">
+      <Card variant="default" padding="lg">
         <CardContent className="space-y-6">
           {/* 날짜 */}
           <p className="text-sm text-neutral-500 dark:text-neutral-400">

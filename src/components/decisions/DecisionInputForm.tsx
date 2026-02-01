@@ -54,7 +54,7 @@ export function DecisionInputForm() {
   const error = validationError || submitError;
 
   return (
-    <Card variant="bordered" padding="lg">
+    <Card variant="default" padding="lg">
       <CardHeader>
         <CardTitle>새로운 결정 분석하기</CardTitle>
       </CardHeader>
